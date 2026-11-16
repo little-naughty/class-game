@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11142f">
+  <title>月兔星星收集隊</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+      background: #10132e;
+      color: #f8f6ff;
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 28px 16px;
+      background:
+        radial-gradient(ellipse at 50% 0%, #353564 0, transparent 56%),
+        linear-gradient(160deg, #171a3b, #0d1026 72%);
+    }
+
+    .game-shell { width: min(900px, 100%); }
+
+    .topbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 0 4px 16px;
+    }
+
+    .eyebrow {
+      margin: 0 0 5px;
+      color: #a9a7d6;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+    }
+
+    h1 { margin: 0; font-size: clamp(1.5rem, 5vw, 2.2rem); letter-spacing: .04em; }
+
+    .best {
+      color: #cac7e8;
+      font-size: .9rem;
+      white-space: nowrap;
+    }
+
+    .best strong { color: #ffe28a; font-size: 1.15rem; }
+
+    .game-card {
+      overflow: hidden;
+      border: 1px solid #ffffff24;
+      border-radius: 22px;
+      background: #161936;
+      box-shadow: 0 24px 70px #08091c88, inset 0 1px #ffffff12;
+    }
+
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 15px 20px;
+      background: #1c2045;
+      border-bottom: 1px solid #ffffff12;
+    }
+
+    .stat { text-align: center; }
+    .stat + .stat { border-left: 1px solid #ffffff18; }
+    .stat-label { display: block; color: #aaa9d0; font-size: .72rem; letter-spacing: .1em; }
+    .stat-value { display: block; margin-top: 2px; color: #fff; font-size: 1.35rem; font-weight: 800; }
+    #score { color: #ffe28a; }
+    #lives { color: #ff9aaf; letter-spacing: .12em; }
+
+    .stage {
+      position: relative;
+      background: #11142e;
+      line-height: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 8 / 5;
+      touch-action: none;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #0c0e25a8;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .overlay[hidden] { display: none; }
+
+    .dialog {
+      width: min(390px, 100%);
+      padding: 27px 25px 24px;
+      border: 1px solid #ffffff2a;
+      border-radius: 20px;
+      background: #20234beF;
+      box-shadow: 0 16px 50px #090a20aa;
+    }
+
+    .moon { margin: 0 0 8px; font-size: 2.6rem; }
+    .dialog h2 { margin: 0 0 9px; font-size: 1.45rem; }
+    .dialog p { margin: 0 auto 18px; color: #d0cfe6; font-size: .93rem; }
+    .dialog .hint { margin: 15px 0 0; color: #a9a8cb; font-size: .78rem; }
+
+    button {
+      min-height: 46px;
+      padding: 0 25px;
+      border: 0;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ffe58f, #ffbd72);
+      color: #29213a;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 20px #ffc86a35;
+      transition: transform .15s ease, filter .15s ease;
+    }
+
+    button:hover { filter: brightness(1.07); transform: translateY(-2px); }
+    button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+    .footer {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin: 14px 0 0;
+      color: #aaa9ce;
+      font-size: .82rem;
+    }
+
+    .footer span { white-space: nowrap; }
+    @media (max-width: 520px) {
+      body { padding: 18px 12px; }
+      .topbar { align-items: center; }
+      .hud { padding: 12px 8px; }
+      .stat-value { font-size: 1.15rem; }
+      .footer { gap: 8px 14px; font-size: .76rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">MOON BUNNY • STAR PATROL</p>
+        <h1>月兔星星收集隊</h1>
+      </div>
+      <div class="best">最高紀錄 <strong id="best">0</strong></div>
+    </header>
+
+    <section class="game-card" aria-label="月兔星星收集遊戲">
+      <div class="hud" aria-live="polite">
+        <div class="stat"><span class="stat-label">分數</span><strong class="stat-value" id="score">0</strong></div>
+        <div class="stat"><span class="stat-label">剩餘時間</span><strong class="stat-value"><span id="time">30</span>s</strong></div>
+        <div class="stat"><span class="stat-label">月兔能量</span><strong class="stat-value" id="lives">♥ ♥ ♥</strong></div>
+      </div>
+      <div class="stage">
+        <canvas id="game" width="800" height="500" aria-label="遊戲畫面：移動月兔接住星星並避開彗星"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="dialog">
+            <p class="moon" aria-hidden="true">🌙</p>
+            <h2 id="message-title">準備好出發了嗎？</h2>
+            <p id="message">幫月兔收集星星，記得躲開紅色彗星！你有 30 秒和 3 顆愛心。</p>
+            <button id="start" type="button">開始遊戲</button>
+            <p class="hint">方向鍵 / WASD 移動，或在畫面上拖曳月兔</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <p class="footer"><span>⭐ 接到星星 +10 分</span><span>☄️ 撞到彗星會失去愛心</span><span>🌙 撐過 30 秒挑戰最高分</span></p>
+  </main>
+
+  <script>
+    (() => {
+      const canvas = document.querySelector("#game");
+      const ctx = canvas.getContext("2d");
+      const overlay = document.querySelector("#overlay");
+      const startButton = document.querySelector("#start");
+      const title = document.querySelector("#message-title");
+      const message = document.querySelector("#message");
+      const scoreDisplay = document.querySelector("#score");
+      const timeDisplay = document.querySelector("#time");
+      const livesDisplay = document.querySelector("#lives");
+      const bestDisplay = document.querySelector("#best");
+      const width = canvas.width;
+      const height = canvas.height;
+      const keys = new Set();
+      const player = { x: width / 2, y: height - 58, radius: 25, speed: 390 };
+      const stars = [];
+      const comets = [];
+      const sparkles = Array.from({ length: 65 }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: Math.random() * 2 + .5,
+        phase: Math.random() * Math.PI * 2
+      }));
+      let score = 0;
+      let lives = 3;
+      let timeLeft = 30;
+      let running = false;
+      let lastTime = 0;
+      let starTimer = 0;
+      let cometTimer = 0;
+      let best = 0;
+
+      try {
+        best = Number(localStorage.getItem("moon-bunny-best")) || 0;
+      } catch (error) {
+        console.warn("無法讀取最高分紀錄。", error);
+      }
+      bestDisplay.textContent = String(best);
+
+      function drawBackground(now) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, "#171b3e");
+        gradient.addColorStop(1, "#29224d");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        for (const dot of sparkles) {
+          const glow = .4 + Math.sin(now / 500 + dot.phase) * .3;
+          ctx.globalAlpha = glow;
+          ctx.fillStyle = "#fff4c4";
+          ctx.beginPath();
+          ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = "#d5d5ef";
+        ctx.beginPath();
+        ctx.arc(680, 90, 38, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#29254c";
+        ctx.beginPath();
+        ctx.arc(697, 78, 35, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff0b";
+        ctx.beginPath();
+        ctx.ellipse(145, 390, 105, 24, -.1, 0, Math.PI * 2);
+        ctx.ellipse(660, 300, 75, 17, .15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawBunny() {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.fillStyle = "#f4efff";
+        ctx.beginPath();
+        ctx.ellipse(-11, -25, 8, 23, -.22, 0, Math.PI * 2);
+        ctx.ellipse(11, -25, 8, 23, .22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f2a9ce";
+        ctx.beginPath();
+        ctx.ellipse(-11, -26, 3.5, 14, -.22, 0, Math.PI * 2);
+        ctx.ellipse(11, -26, 3.5, 14, .22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fffaff";
+        ctx.beginPath();
+        ctx.ellipse(0, 3, 24, 23, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#403758";
+        ctx.beginPath();
+        ctx.arc(-8, 0, 2, 0, Math.PI * 2);
+        ctx.arc(8, 0, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f49ab9";
+        ctx.beginPath();
+        ctx.arc(0, 7, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawStar(item) {
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        ctx.rotate(item.spin);
+        ctx.shadowColor = "#ffe58f";
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = "#ffe58f";
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const radius = i % 2 === 0 ? item.radius : item.radius * .46;
+          const angle = -Math.PI / 2 + i * Math.PI / 5;
+          ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawComet(item) {
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        ctx.rotate(.55);
+        const trail = ctx.createLinearGradient(0, -item.radius, 0, item.radius * 2);
+        trail.addColorStop(0, "#ff718b00");
+        trail.addColorStop(1, "#ff718b99");
+        ctx.fillStyle = trail;
+        ctx.beginPath();
+        ctx.ellipse(0, item.radius, item.radius * .5, item.radius * 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowColor = "#ff718b";
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = "#ff8c9f";
+        ctx.beginPath();
+        ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function draw(now) {
+        drawBackground(now);
+        for (const star of stars) drawStar(star);
+        for (const comet of comets) drawComet(comet);
+        drawBunny();
+      }
+
+      function updateHud() {
+        scoreDisplay.textContent = String(score);
+        timeDisplay.textContent = String(Math.ceil(timeLeft));
+        livesDisplay.textContent = `${"♥ ".repeat(lives)}${"♡ ".repeat(3 - lives)}`.trim();
+      }
+
+      function endGame(won) {
+        running = false;
+        title.textContent = won ? "時間到，任務完成！" : "月兔需要休息一下";
+        message.textContent = `你拿下 ${score} 分${score > best ? "，創下新紀錄！" : "。"}再來挑戰一次吧！`;
+        startButton.textContent = "再玩一次";
+        overlay.hidden = false;
+        if (score > best) {
+          best = score;
+          bestDisplay.textContent = String(best);
+          try {
+            localStorage.setItem("moon-bunny-best", String(best));
+          } catch (error) {
+            console.warn("無法儲存最高分紀錄。", error);
+          }
+        }
+      }
+
+      function beginGame() {
+        score = 0;
+        lives = 3;
+        timeLeft = 30;
+        starTimer = 0;
+        cometTimer = 0;
+        stars.length = 0;
+        comets.length = 0;
+        player.x = width / 2;
+        player.y = height - 58;
+        lastTime = performance.now();
+        running = true;
+        overlay.hidden = true;
+        updateHud();
+        requestAnimationFrame(frame);
+      }
+
+      function spawnItem(list, speed, radius) {
+        list.push({
+          x: radius + Math.random() * (width - radius * 2),
+          y: -radius,
+          radius,
+          speed: speed * (.78 + Math.random() * .44),
+          spin: Math.random() * Math.PI
+        });
+      }
+
+      function updateItems(list, delta, kind) {
+        for (let i = list.length - 1; i >= 0; i--) {
+          const item = list[i];
+          item.y += item.speed * delta;
+          item.spin += delta * 2;
+          const dx = item.x - player.x;
+          const dy = item.y - player.y;
+          if (Math.hypot(dx, dy) < item.radius + player.radius * 1.4) {
+            list.splice(i, 1);
+            if (kind === "star") {
+              score += 10;
+            } else {
+              lives--;
+              if (lives <= 0) {
+                updateHud();
+                endGame(false);
+                return;
+              }
+            }
+          } else if (item.y - item.radius > height) {
+            list.splice(i, 1);
+          }
+        }
+      }
+
+      function frame(now) {
+        if (!running) return;
+        const delta = Math.min((now - lastTime) / 1000, .04);
+        lastTime = now;
+        timeLeft = Math.max(0, timeLeft - delta);
+        if (keys.has("ArrowLeft") || keys.has("a")) player.x -= player.speed * delta;
+        if (keys.has("ArrowRight") || keys.has("d")) player.x += player.speed * delta;
+        if (keys.has("ArrowUp") || keys.has("w")) player.y -= player.speed * delta;
+        if (keys.has("ArrowDown") || keys.has("s")) player.y += player.speed * delta;
+        player.x = Math.max(player.radius, Math.min(width - player.radius, player.x));
+        player.y = Math.max(52, Math.min(height - player.radius, player.y));
+        starTimer += delta;
+        cometTimer += delta;
+        if (starTimer > .72) {
+          spawnItem(stars, 175 + (30 - timeLeft) * 2, 13);
+          starTimer = 0;
+        }
+        if (cometTimer > 1.15) {
+          spawnItem(comets, 205 + (30 - timeLeft) * 2.5, 15);
+          cometTimer = 0;
+        }
+        updateItems(stars, delta, "star");
+        if (!running) return;
+        updateItems(comets, delta, "comet");
+        updateHud();
+        draw(now);
+        if (timeLeft <= 0) {
+          endGame(true);
+          return;
+        }
+        requestAnimationFrame(frame);
+      }
+
+      function moveToPointer(event) {
+        const bounds = canvas.getBoundingClientRect();
+        player.x = Math.max(player.radius, Math.min(width - player.radius,
+          (event.clientX - bounds.left) * width / bounds.width));
+        player.y = Math.max(52, Math.min(height - player.radius,
+          (event.clientY - bounds.top) * height / bounds.height));
+        if (!running) draw(performance.now());
+      }
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(key)) event.preventDefault();
+        keys.add(key);
+      });
+      window.addEventListener("keyup", (event) => {
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        keys.delete(key);
+      });
+      canvas.addEventListener("pointerdown", (event) => {
+        canvas.setPointerCapture(event.pointerId);
+        moveToPointer(event);
+      });
+      canvas.addEventListener("pointermove", (event) => {
+        if (event.buttons || event.pointerType === "touch") moveToPointer(event);
+      });
+      startButton.addEventListener("click", beginGame);
+      draw(0);
+    })();
+  </script>
+</body>
+</html>
